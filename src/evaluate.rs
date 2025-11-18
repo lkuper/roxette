@@ -1,8 +1,8 @@
 use crate::parser::BinOp;
+use crate::parser::Decl;
 use crate::parser::Expr;
 use crate::parser::Lit;
 use crate::parser::Program;
-use crate::parser::Stmt;
 use crate::parser::UnaryOp;
 use std::fmt::Display;
 use std::fmt::Formatter;
@@ -118,21 +118,26 @@ pub fn evaluate_expr(e: Expr) -> Val {
                 (_, _, _) => panic!("Not implemented yet"),
             }
         }
+        Expr::Var(_) => todo!(),
     }
 }
 
-fn evaluate_stmt(stmt: Stmt) {
-    match stmt {
+fn evaluate_decl(decl: Decl) {
+    match decl {
         // For an expression statement,
         // just evaluate it for its side effect.
-        Stmt::ExprStmt(e) => {
+        Decl::ExprStmt(e) => {
             evaluate_expr(e);
         }
         // For a print statement,
         // evaluate it, print the value, and return it.
-        Stmt::PrintStmt(e) => {
+        Decl::PrintStmt(e) => {
             let val = evaluate_expr(e);
             println!("{}", val);
+        }
+        // For a variable declaration...TODO.
+        Decl::VarDecl(_ident, _expr) => {
+            todo!()
         }
     }
 }
@@ -140,8 +145,8 @@ fn evaluate_stmt(stmt: Stmt) {
 pub fn evaluate(program: Program) {
     println!("Evaluating...");
 
-    for stmt in program.statements {
-        evaluate_stmt(stmt);
+    for decl in program.decls {
+        evaluate_decl(decl);
     }
 }
 

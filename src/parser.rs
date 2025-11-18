@@ -2,10 +2,15 @@ use crate::tokenize::Token;
 use crate::tokenize::TokenType;
 use crate::tokenize::Tokens;
 
-// Lox statement grammar
-// (from https://craftinginterpreters.com/statements-and-state.html#statements)
+// Lox program grammar
+// (from https://craftinginterpreters.com/statements-and-state.html#variable-syntax)
 
-// program        → statement* EOF ;
+// program        → declaration* EOF ;
+
+// declaration    → varDecl
+//                | statement ;
+
+// varDecl        → "var" IDENTIFIER ( "=" expression )? ";" ;
 
 // statement      → exprStmt
 //                | printStmt ;
@@ -14,14 +19,19 @@ use crate::tokenize::Tokens;
 // printStmt      → "print" expression ";" ;
 
 // Lox expression grammar
-// (from https://craftinginterpreters.com/representing-code.html#a-grammar-for-lox-expressions)
+// (from https://craftinginterpreters.com/representing-code.html#a-grammar-for-lox-expressions),
+// with the addition of `IDENTIFIER` to the "literal" rule.
+
+// This is different from what the book does, since in chapter 6 the book introduces something
+// called "primary" to the grammar which takes the place of the old "literal" rule.
+// It's a bit weird to cram in identifiers under "literal", but let's roll with it for a while.
 
 // expression     → literal
 //                | unary
 //                | binary
 //                | grouping ;
 
-// literal        → NUMBER | STRING | "true" | "false" | "nil" ;
+// primary        → NUMBER | STRING | "true" | "false" | "nil" | IDENTIFIER ;
 // grouping       → "(" expression ")" ;
 // unary          → ( "-" | "!" ) expression ;
 // binary         → expression operator expression ;
@@ -35,7 +45,7 @@ use crate::tokenize::Tokens;
 // binary       := term operator term ;
 // term         := literal | unary | grouping ;
 // unary        := ("-" | "!") term ;
-// literal      := NUMBER | STRING | "true" | "false" | "nil" ;
+// literal      := NUMBER | STRING | "true" | "false" | "nil" | IDENTIFIER ;
 // grouping     := "(" expression ")" ;
 // operator     :=  "==" | "!=" | "<" | "<=" | ">" | ">="
 //                 | "+" | "-"  | "*" | "/" ;
@@ -48,19 +58,20 @@ use crate::tokenize::Tokens;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Program {
-    pub statements: Vec<Stmt>,
+    pub decls: Vec<Decl>,
 }
 
 impl Program {
-    pub fn new(statements: Vec<Stmt>) -> Program {
-        Program { statements }
+    pub fn new(decls: Vec<Decl>) -> Program {
+        Program { decls }
     }
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Stmt {
+pub enum Decl {
     ExprStmt(Expr),
     PrintStmt(Expr),
+    VarDecl(Token, Expr),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -69,6 +80,7 @@ pub enum Expr {
     Unary(UnaryOp, Box<Expr>),
     Binary(Box<Expr>, BinOp, Box<Expr>),
     Grouping(Box<Expr>),
+    Var(Token),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -140,6 +152,9 @@ fn format_expr(e: Expr) -> String {
             let s = format_expr(*e1).as_str().to_owned() + o + format_expr(*e2).as_str();
             s.to_string()
         }
+        Expr::Var(_) => {
+            todo!()
+        }
     }
 }
 
@@ -184,6 +199,14 @@ fn is_binop(t: TokenType) -> bool {
     }
 }
 
+fn parse_ident(token: Token, n: usize) -> (Expr, usize) {
+    let ident = match token.token_type {
+        TokenType::Identifier => Expr::Var(token),
+        _ => panic!("Passed a non-ident token to parse_ident"),
+    };
+    (ident, n + 1)
+}
+
 fn parse_lit(token: Token, n: usize) -> (Expr, usize) {
     let lit = match token.token_type {
         TokenType::String => Expr::Literal(Lit::String(token.lexeme.to_string())),
@@ -226,6 +249,7 @@ fn parse_binop(token: Token, n: usize) -> (BinOp, usize) {
 
 fn parse_term(tokens: Tokens, n: usize) -> (Expr, usize) {
     let (term, n_after_term) = match tokens.tokens[n].token_type {
+        TokenType::Identifier => parse_ident(tokens.tokens[n].clone(), n),
         tt if is_literal(tt) => parse_lit(tokens.tokens[n].clone(), n),
         tt if is_unary_op(tt) => {
             let (op, n_after_unary_op) = parse_unary_op(tokens.tokens[n].clone(), n);
@@ -269,7 +293,7 @@ pub fn parse_expr_wrapper(tokens: Tokens) -> Expr {
     e
 }
 
-fn parse_print(tokens: Tokens, n: usize) -> (Stmt, usize) {
+fn parse_print(tokens: Tokens, n: usize) -> (Decl, usize) {
     // Increment one to consume the "print" token
     let (expr, n_after_print) = parse_expr(tokens.clone(), n + 1);
     // What's next had better be a semicolon
@@ -281,11 +305,11 @@ fn parse_print(tokens: Tokens, n: usize) -> (Stmt, usize) {
         );
     } else {
         // Increment one to consume the semicolon token
-        (Stmt::PrintStmt(expr), n_after_print + 1)
+        (Decl::PrintStmt(expr), n_after_print + 1)
     }
 }
 
-fn parse_stmt(tokens: Tokens, n: usize) -> (Stmt, usize) {
+fn parse_stmt(tokens: Tokens, n: usize) -> (Decl, usize) {
     let (stmt, n_after_stmt) = match tokens.tokens[n].token_type {
         // Handle print statements, which contain expressions.
         TokenType::Print => parse_print(tokens.clone(), n),
@@ -303,25 +327,59 @@ fn parse_stmt(tokens: Tokens, n: usize) -> (Stmt, usize) {
                 );
             } else {
                 // Increment one to consume the semicolon token
-                (Stmt::ExprStmt(expr), n_after_expr + 1)
+                (Decl::ExprStmt(expr), n_after_expr + 1)
             }
         }
     };
     (stmt, n_after_stmt)
 }
 
+fn parse_ident_decl(token: Token, n: usize) -> (Token, usize) {
+    let name = match token.token_type {
+        TokenType::Identifier => token,
+        _ => panic!("Passed a non-ident token to parse_ident_decl"),
+    };
+    (name, n + 1)
+}
+
+fn parse_var_decl(tokens: Tokens, n: usize) -> (Decl, usize) {
+    // Increment one to consume the "var" token
+    let (name, n_after_var) = parse_ident_decl(tokens.tokens[n].clone(), n + 1);
+    let (initializer, n_after_expr) = parse_expr(tokens.clone(), n_after_var);
+    // Increment one to consume the semicolon token
+    (Decl::VarDecl(name, initializer), n_after_expr + 1)
+}
+
+// Oddly, in the book's grammar, a "statement" is a kind of "declaration",
+// but the way the book's code is written, a "declaration" seems to be a kind of "statement".
+// We're going to go with the former.
+
+// Hmm, although, maybe it's split up this way in the book because of the book's weird grammar
+// that's designed to make precedence explicit.
+// I'm actually kind of confused about what the right thing is to do here.
+fn parse_decl(tokens: Tokens, n: usize) -> (Decl, usize) {
+    let (decl, n_after_decl) = match tokens.tokens[n].token_type {
+        // If we encounter a `var` token, this is a variable declaration.
+        // Increment one to consume the `var` keyword.
+        TokenType::Var => parse_var_decl(tokens.clone(), n + 1),
+        // Otherwise, this is a statement.
+        _ => parse_stmt(tokens.clone(), n),
+    };
+    (decl, n_after_decl)
+}
+
 pub fn parse(tokens: Tokens) -> Program {
     println!("Parsing...");
 
-    // At the top level, a Lox program is just a list of statements.
+    // At the top level, a Lox program is just a list of decls.
     let mut program = Program::new(Vec::new());
     // A counter for tokens.
     let mut n = 0;
 
     while tokens.tokens[n].token_type != TokenType::Eof {
-        let (s, n_after_stmt) = parse_stmt(tokens.clone(), n);
-        n = n_after_stmt;
-        program.statements.push(s);
+        let (s, n_after_decl) = parse_decl(tokens.clone(), n);
+        n = n_after_decl;
+        program.decls.push(s);
     }
 
     // Check if we actually parsed all the input.
@@ -680,6 +738,44 @@ mod tests {
             BinOp::Ne,
             Box::new(Expr::Literal(Lit::String("❤️".to_string()))),
         );
+
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn parse_var_decl_1() {
+        let source = Source::new("var x = \"❤️\";".to_string());
+        let tokens = tokenize(source);
+        let ast = parse(tokens);
+
+        let mut decls = Vec::new();
+        decls.push(Decl::VarDecl(
+            Token::new(TokenType::Identifier, "x".to_string(), 1),
+            Expr::Literal(Lit::String("❤️".to_string())),
+        ));
+        let expected = Program::new(decls);
+
+        assert_eq!(ast, expected);
+    }
+
+    #[test]
+    fn parse_var_decl_2() {
+        let source = Source::new("var sum = 4 + 5;".to_string());
+        let tokens = tokenize(source);
+        let ast = parse(tokens);
+
+        let mut decls = Vec::new();
+        let subexpr = Expr::Binary(
+            Box::new(Expr::Literal(Lit::Number(4 as f64))),
+            BinOp::Plus,
+            Box::new(Expr::Literal(Lit::Number(5 as f64))),
+        );
+
+        decls.push(Decl::VarDecl(
+            Token::new(TokenType::Identifier, "sum".to_string(), 1),
+            subexpr,
+        ));
+        let expected = Program::new(decls);
 
         assert_eq!(ast, expected);
     }
