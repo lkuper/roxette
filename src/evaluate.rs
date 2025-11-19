@@ -1,3 +1,4 @@
+use crate::environment::Environment;
 use crate::parser::BinOp;
 use crate::parser::Decl;
 use crate::parser::Expr;
