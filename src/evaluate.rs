@@ -54,7 +54,9 @@ fn eval_lt(v1: Val, v2: Val) -> bool {
     }
 }
 
-pub fn evaluate_expr(e: Expr) -> Val {
+// It should be fine for this function to borrow `env`,
+// because expressions will never mutate the environment.
+pub fn evaluate_expr(e: Expr, env: &Environment) -> Val {
     match e {
         Expr::Literal(l) => match l {
             Lit::Number(n) => Val::LNum(n),
@@ -63,9 +65,9 @@ pub fn evaluate_expr(e: Expr) -> Val {
             Lit::False => Val::LBool(false),
             Lit::Nil => Val::LNil,
         },
-        Expr::Grouping(e) => evaluate_expr(*e),
+        Expr::Grouping(e) => evaluate_expr(*e, env),
         Expr::Unary(op, e) => {
-            let lv = evaluate_expr(*e);
+            let lv = evaluate_expr(*e, env);
             match (op, lv) {
                 // I'm just going to make a design decision that you can't
                 // use "-" on something that isn't a number,
@@ -77,8 +79,8 @@ pub fn evaluate_expr(e: Expr) -> Val {
             }
         }
         Expr::Binary(e1, op, e2) => {
-            let lv1 = evaluate_expr(*e1);
-            let lv2 = evaluate_expr(*e2);
+            let lv1 = evaluate_expr(*e1, env);
+            let lv2 = evaluate_expr(*e2, env);
             match (lv1.clone(), op, lv2.clone()) {
                 // What things can you compare with `==` or `!=`?
                 // All the things, but if you compare things of different types,
@@ -123,20 +125,21 @@ pub fn evaluate_expr(e: Expr) -> Val {
     }
 }
 
-fn evaluate_decl(decl: Decl) {
+fn evaluate_decl(decl: Decl, env: Environment) {
     match decl {
         // For an expression statement,
         // just evaluate it for its side effect.
         Decl::ExprStmt(e) => {
-            evaluate_expr(e);
+            evaluate_expr(e, &env);
         }
         // For a print statement,
         // evaluate it, print the value, and return it.
         Decl::PrintStmt(e) => {
-            let val = evaluate_expr(e);
+            let val = evaluate_expr(e, &env);
             println!("{}", val);
         }
         // For a variable declaration...TODO.
+        // This will actually have to mutate the environment.
         Decl::VarDecl(_ident, _expr) => {
             todo!()
         }
@@ -147,7 +150,7 @@ pub fn evaluate(program: Program) {
     println!("Evaluating...");
 
     for decl in program.decls {
-        evaluate_decl(decl);
+        evaluate_decl(decl, Environment::new());
     }
 }
 
@@ -162,7 +165,8 @@ mod tests {
     #[test]
     fn evaluator_runs() {
         let ast = Expr::Literal(Lit::True);
-        let _val = evaluate_expr(ast);
+        let env = Environment::new();
+        let _val = evaluate_expr(ast, &env);
         assert!(true);
     }
 
@@ -171,7 +175,8 @@ mod tests {
         let source = Source::new("!false".to_string());
         let tokens = tokenize(source);
         let ast = parse_expr_wrapper(tokens);
-        let val = evaluate_expr(ast);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
         assert_eq!(val, Val::LBool(true));
     }
 
@@ -180,7 +185,8 @@ mod tests {
         let source = Source::new("!!false".to_string());
         let tokens = tokenize(source);
         let ast = parse_expr_wrapper(tokens);
-        let val = evaluate_expr(ast);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
         assert_eq!(val, Val::LBool(false));
     }
 
@@ -189,7 +195,8 @@ mod tests {
         let source = Source::new("---3".to_string());
         let tokens = tokenize(source);
         let ast = parse_expr_wrapper(tokens);
-        let val = evaluate_expr(ast);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
         assert_eq!(val, Val::LNum(-3.0));
     }
 
@@ -198,7 +205,8 @@ mod tests {
         let source = Source::new("((30-10)/5)+((5*6)/10)".to_string());
         let tokens = tokenize(source);
         let ast = parse_expr_wrapper(tokens);
-        let val = evaluate_expr(ast);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
         assert_eq!(val, Val::LNum(7.0));
     }
 
@@ -207,7 +215,8 @@ mod tests {
         let source = Source::new("\"❤️ ❤️ ❤️\"".to_string());
         let tokens = tokenize(source);
         let ast = parse_expr_wrapper(tokens);
-        let val = evaluate_expr(ast);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
         assert_eq!(val, Val::LStr("❤️ ❤️ ❤️".to_string()));
     }
 
@@ -216,7 +225,8 @@ mod tests {
         let source = Source::new("\"❤️ ❤️ ❤️\" == \"❤️ ❤️\"".to_string());
         let tokens = tokenize(source);
         let ast = parse_expr_wrapper(tokens);
-        let val = evaluate_expr(ast);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
         assert_eq!(val, Val::LBool(false));
     }
 
@@ -225,7 +235,8 @@ mod tests {
         let source = Source::new("(((30-10)/5)+((5*6)/10)) != \"❤️\"".to_string());
         let tokens = tokenize(source);
         let ast = parse_expr_wrapper(tokens);
-        let val = evaluate_expr(ast);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
         assert_eq!(val, Val::LBool(true));
     }
 
@@ -234,7 +245,8 @@ mod tests {
         let source = Source::new("!(3 <= 4)".to_string());
         let tokens = tokenize(source);
         let ast = parse_expr_wrapper(tokens);
-        let val = evaluate_expr(ast);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
         assert_eq!(val, Val::LBool(false));
     }
 
