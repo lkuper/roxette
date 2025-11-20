@@ -2,10 +2,17 @@
 print "Hello, world!";
 print "";
 print "I'm Roxette! I'm an interpreter for Lox.";
-print "I can handle everything up through section 8.1 of the _Crafting Interpreters_ book.";
+print "I can handle everything up through section 8.3 of the _Crafting Interpreters_ book.";
 print "Which is to say, not much.  But I can evaluate simple arithmetic expressions.";
 print "For example, `((30-10)/5)+((5*6)/10)` evaluates to:";
 print ((30-10)/5)+((5*6)/10);
+print "";
+print "I also support global variables!";
+var x = 5;
+var y = 10;
+print "For instance, if we assign 5 to `x` and 10 to `y`,";
+print "then `x + y` evaluates to:";
+print x + y;
 print "";
 print "However, one difference from the book's implementation of Lox";
 print "is that I don't have a notion of operator precedence.";

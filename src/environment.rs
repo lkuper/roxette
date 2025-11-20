@@ -17,7 +17,21 @@ impl Environment {
         self.env.insert(var, val);
     }
 
-    pub fn lookup(&mut self, var: String) -> Option<Val> {
+    pub fn lookup(&self, var: String) -> Option<Val> {
         self.env.get(&var).cloned()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::evaluate::Val;
+
+    #[test]
+    fn env_works() {
+        let mut env = Environment::new();
+        env.extend("x".to_string(), Val::LNum(5.0));
+        let result = env.lookup("x".to_string()).unwrap();
+        assert_eq!(result, Val::LNum(5.0));
     }
 }

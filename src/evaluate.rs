@@ -121,14 +121,20 @@ pub fn evaluate_expr(e: Expr, env: &Environment) -> Val {
                 (_, _, _) => panic!("Not implemented yet"),
             }
         }
-        Expr::Var(_) => todo!(),
+        Expr::Var(t) => match env.lookup(t.lexeme) {
+            Some(v) => v,
+            None => panic!("Unbound variable on line {:?}", t.line),
+        },
     }
 }
 
-fn evaluate_decl(decl: Decl, env: Environment) {
+fn evaluate_decl(decl: Decl, mut env: Environment) -> Environment {
     match decl {
         // For an expression statement,
         // just evaluate it for its side effect.
+        // ("Evaluate an expression for its side effect" might sound odd,
+        // but expressions can contain function calls,
+        // and Lox functions might be effectful!)
         Decl::ExprStmt(e) => {
             evaluate_expr(e, &env);
         }
@@ -140,17 +146,21 @@ fn evaluate_decl(decl: Decl, env: Environment) {
         }
         // For a variable declaration...TODO.
         // This will actually have to mutate the environment.
-        Decl::VarDecl(_ident, _expr) => {
-            todo!()
+        Decl::VarDecl(ident, expr) => {
+            let val = evaluate_expr(expr, &env);
+            env.extend(ident.lexeme, val);
         }
     }
+    env
 }
 
 pub fn evaluate(program: Program) {
     println!("Evaluating...");
 
+    let mut env = Environment::new();
+
     for decl in program.decls {
-        evaluate_decl(decl, Environment::new());
+        env = evaluate_decl(decl, env);
     }
 }
 
@@ -258,6 +268,20 @@ mod tests {
         let program = "// Here's a Lox program!\n\
                        print \"Hello, world!\";\n\
                        print \"I'm a Lox program!\";";
+        let source = Source::new(program.to_string());
+        let tokens = tokenize(source);
+        let ast = parse(tokens);
+        let _val = evaluate(ast);
+        assert!(true);
+    }
+
+    #[test]
+    fn eval_var_decl() {
+        // TODO: Not really sure how to test this.
+        // Redirect printing to a file or something,
+        // then check the contents of the file?
+        let program = "var x = 5;\n\
+                       print x;";
         let source = Source::new(program.to_string());
         let tokens = tokenize(source);
         let ast = parse(tokens);
