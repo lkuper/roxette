@@ -88,11 +88,17 @@ pub fn evaluate_expr(e: Expr, env: &Environment) -> Val {
                 (_, BinOp::Eq, _) => Val::LBool(eval_eq(lv1, lv2)),
                 (_, BinOp::Ne, _) => Val::LBool(!eval_eq(lv1, lv2)),
                 (_, BinOp::Lt, _) => Val::LBool(eval_lt(lv1, lv2)),
-                (_, BinOp::Gt, _) => Val::LBool(!eval_lt(lv1, lv2)),
+                (_, BinOp::Gt, _) => Val::LBool(eval_lt(lv2, lv1)),
 
                 // What things can you compare with `<=` or `>=`?
                 // All the things, but if you compare things of different types,
                 // `<=` and `>=` will always be false.
+
+                // This is actually different from the behavior that the book describes!
+                // The book says, 'You can’t ask Lox if 3 is less than "three"'.
+                // That is, in the book's implementation, `3 < "three"` would result
+                // in a run-time type error.
+                // So I might revisit this design choice later.
                 (_, BinOp::Le, _) => {
                     match eval_eq(lv1.clone(), lv2.clone()) {
                         true => Val::LBool(true),
@@ -104,7 +110,7 @@ pub fn evaluate_expr(e: Expr, env: &Environment) -> Val {
                     match eval_eq(lv1.clone(), lv2.clone()) {
                         true => Val::LBool(true),
                         // If they're not =, check if they're >.
-                        false => Val::LBool(!eval_lt(lv1, lv2)),
+                        false => Val::LBool(eval_lt(lv2, lv1)),
                     }
                 }
                 // Arithmetic can only be done on numbers.
@@ -253,6 +259,96 @@ mod tests {
     #[test]
     fn eval_expr_2() {
         let source = Source::new("!(3 <= 4)".to_string());
+        let tokens = tokenize(source);
+        let ast = parse_expr_wrapper(tokens);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
+        assert_eq!(val, Val::LBool(false));
+    }
+
+    #[test]
+    fn eval_expr_3() {
+        let source = Source::new("\"hello\" >= 3)".to_string());
+        let tokens = tokenize(source);
+        let ast = parse_expr_wrapper(tokens);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
+        assert_eq!(val, Val::LBool(false));
+    }
+
+    #[test]
+    fn eval_expr_4() {
+        let source = Source::new("3 >= \"hello\")".to_string());
+        let tokens = tokenize(source);
+        let ast = parse_expr_wrapper(tokens);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
+        assert_eq!(val, Val::LBool(false));
+    }
+
+    #[test]
+    fn eval_expr_5() {
+        let source = Source::new("\"hello\" >= \"hello\")".to_string());
+        let tokens = tokenize(source);
+        let ast = parse_expr_wrapper(tokens);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
+        assert_eq!(val, Val::LBool(true));
+    }
+
+    #[test]
+    fn eval_expr_6() {
+        let source = Source::new("\"hello\" <= \"hello\")".to_string());
+        let tokens = tokenize(source);
+        let ast = parse_expr_wrapper(tokens);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
+        assert_eq!(val, Val::LBool(true));
+    }
+
+    #[test]
+    fn eval_expr_7() {
+        let source = Source::new("\"hello\" < 3)".to_string());
+        let tokens = tokenize(source);
+        let ast = parse_expr_wrapper(tokens);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
+        assert_eq!(val, Val::LBool(false));
+    }
+
+    #[test]
+    fn eval_expr_8() {
+        let source = Source::new("\"hello\" > 3)".to_string());
+        let tokens = tokenize(source);
+        let ast = parse_expr_wrapper(tokens);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
+        assert_eq!(val, Val::LBool(false));
+    }
+
+    #[test]
+    fn eval_expr_9() {
+        let source = Source::new("\"hello\" < \"hello\")".to_string());
+        let tokens = tokenize(source);
+        let ast = parse_expr_wrapper(tokens);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
+        assert_eq!(val, Val::LBool(false));
+    }
+
+    #[test]
+    fn eval_expr_10() {
+        let source = Source::new("\"hello\" > \"hello\")".to_string());
+        let tokens = tokenize(source);
+        let ast = parse_expr_wrapper(tokens);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
+        assert_eq!(val, Val::LBool(false));
+    }
+
+    #[test]
+    fn eval_expr_11() {
+        let source = Source::new("").to_string());
         let tokens = tokenize(source);
         let ast = parse_expr_wrapper(tokens);
         let env = Environment::new();
