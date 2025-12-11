@@ -161,8 +161,6 @@ fn evaluate_decl(decl: Decl, mut env: Environment) -> Environment {
 }
 
 pub fn evaluate(program: Program) {
-    println!("Evaluating...");
-
     let mut env = Environment::new();
 
     for decl in program.decls {
@@ -339,16 +337,6 @@ mod tests {
     #[test]
     fn eval_expr_10() {
         let source = Source::new("\"hello\" > \"hello\")".to_string());
-        let tokens = tokenize(source);
-        let ast = parse_expr_wrapper(tokens);
-        let env = Environment::new();
-        let val = evaluate_expr(ast, &env);
-        assert_eq!(val, Val::LBool(false));
-    }
-
-    #[test]
-    fn eval_expr_11() {
-        let source = Source::new("").to_string());
         let tokens = tokenize(source);
         let ast = parse_expr_wrapper(tokens);
         let env = Environment::new();

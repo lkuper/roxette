@@ -119,8 +119,6 @@ fn make_ident_token(s: String, line: i32) -> Token {
 }
 
 pub fn tokenize(source: Source) -> Tokens {
-    println!("Tokenizing...");
-
     let mut result = Tokens::new(Vec::new());
     let mut line = 1;
 

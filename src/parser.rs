@@ -369,8 +369,6 @@ fn parse_decl(tokens: Tokens, n: usize) -> (Decl, usize) {
 }
 
 pub fn parse(tokens: Tokens) -> Program {
-    println!("Parsing...");
-
     // At the top level, a Lox program is just a list of decls.
     let mut program = Program::new(Vec::new());
     // A counter for tokens.

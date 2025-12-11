@@ -12,8 +12,6 @@ impl Source {
 }
 
 pub fn read_source(filename: &str) -> Source {
-    println!("Reading...");
-
     // Try to read from our file
     match fs::read_to_string(filename) {
         Ok(s) => Source::new(s),
