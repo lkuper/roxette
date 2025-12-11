@@ -251,6 +251,16 @@ mod tests {
     }
 
     #[test]
+    fn eval_string_concat() {
+        let source = Source::new("\"hello, \" + \"world\")".to_string());
+        let tokens = tokenize(source);
+        let ast = parse_expr_wrapper(tokens);
+        let env = Environment::new();
+        let val = evaluate_expr(ast, &env);
+        assert_eq!(val, Val::LStr("hello, world".to_string()));
+    }
+
+    #[test]
     fn eval_expr_1() {
         let source = Source::new("(((30-10)/5)+((5*6)/10)) != \"❤️\"".to_string());
         let tokens = tokenize(source);
