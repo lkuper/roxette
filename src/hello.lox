@@ -20,4 +20,8 @@ print "That's why the above arithmetic expression has so many parentheses in it.
 print "Something like `30*10+5` would be a syntax error (try it).";
 print "But `(30*10)+5` is fine, and so is `30*(10+5)`.";
 print "";
+print "Last thing: I support concatenating strings with `+`.";
+print "For example, `'hello, ' + 'world!'` evaluates to:";
+print "hello, " + "world!";
+print "";
 print "OK, have fun! ❤️";

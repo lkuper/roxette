@@ -115,6 +115,12 @@ pub fn evaluate_expr(e: Expr, env: &Environment) -> Val {
                 }
                 // Arithmetic can only be done on numbers.
                 (Val::LNum(v1), BinOp::Plus, Val::LNum(v2)) => Val::LNum(v1 + v2),
+                // We might also concatenate strings with `+`, though.
+                (Val::LStr(v1), BinOp::Plus, Val::LStr(v2)) => {
+                    let mut result_str = v1.clone();
+                    result_str.push_str(&v2);
+                    Val::LStr(result_str)
+                },
                 (Val::LNum(v1), BinOp::Minus, Val::LNum(v2)) => Val::LNum(v1 - v2),
                 (Val::LNum(v1), BinOp::Times, Val::LNum(v2)) => Val::LNum(v1 * v2),
                 (Val::LNum(v1), BinOp::Div, Val::LNum(v2)) => {
